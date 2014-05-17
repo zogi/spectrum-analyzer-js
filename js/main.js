@@ -1,4 +1,5 @@
 // Gilián Zoltán <gilian@caesar.elte.hu>, 2014
+// Simplified BSD License
 
 var message = null;
 var canvas = null;

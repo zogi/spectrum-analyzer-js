@@ -1,4 +1,5 @@
 // Gilián Zoltán <gilian@caesar.elte.hu>, 2014
+// Simplified BSD License
 
 var Float32CyclicBuffer = function(block_size, block_count) {
 	this.block_size = block_size;

@@ -1,4 +1,5 @@
 // Gilián Zoltán <gilian@caesar.elte.hu>, 2014
+// Simplified BSD License
 
 // Járai Antal: Bevezetés a matematikába című jegyzetben leírt FFT alapján készült.
 // Harmadik kiadás, ELTE Eötvös Kiadó, 2009, 332. o., 9.2.44. FFT algoritmus.
