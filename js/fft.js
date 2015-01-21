@@ -1,13 +1,17 @@
 // Gilián Zoltán <gilian@caesar.elte.hu>, 2014
 // Simplified BSD License
 
-// Járai Antal: Bevezetés a matematikába című jegyzetben leírt FFT alapján készült.
-// Harmadik kiadás, ELTE Eötvös Kiadó, 2009, 332. o., 9.2.44. FFT algoritmus.
+// Járai Antal: Bevezetés a matematikába című jegyzet alapján készült.
+// Harmadik kiadás, ELTE Eötvös Kiadó, 2009, 332-334 p.,
+// 9.2.44. FFT algoritmus.
 
-var sin = Math.sin,bufferSize
-	cos = Math.cos,
-	pi2 = Math.PI * 2;
-	log2 = Math.log(2);
+// based on the discrete mathematics textbook 'Bevezetés a matematikába' by
+// Antal Járai (hungarian).
+
+var sin = Math.sin,
+    cos = Math.cos,
+    pi2 = Math.PI * 2,
+    log2 = Math.log(2);
 
 function ReverseBits(x, nbits) {
 	var y = 0;
