@@ -136,7 +136,7 @@ function Render() {
 
 	// render y axis labels
 
-	ctx.textBaseline = 'bottom';
+	ctx.textBaseline = 'middle';
 	ctx.textAlign = 'right'
 	var base_y = canvas.height - 2*text_height;
 	var db_step = Math.ceil(controller.db_range/20);
