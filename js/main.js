@@ -89,7 +89,7 @@ function Render() {
 	var freq_min = c0_freq * Math.pow(freq_cent, controller.freq_min_cents);
 	var freq_max = c0_freq * Math.pow(freq_cent, controller.freq_min_cents + controller.freq_range_cents);
 
-	var text_width = 50;
+	var text_width = 60;
 	var text_height = 15;
 
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -141,7 +141,7 @@ function Render() {
 	var base_y = canvas.height - 2*text_height;
 	var db_step = Math.ceil(controller.db_range/20);
 	var db_max = controller.db_min + controller.db_range;
-	var x = text_width-5;
+	var x = text_width - 15;
 	for (var db=controller.db_min; db <= db_max; db += db_step) {
 		var y = base_y * (1 - (db-controller.db_min)/controller.db_range);
 		ctx.fillText(db.toString() + ' dB', x, y);
