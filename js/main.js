@@ -14,7 +14,7 @@ var gui = null;
 var controller = {
 	ref_level: 1e-4,
 	db_min: -70,
-	db_max: 0,
+	db_range: 70,
 	freq_min_cents: 4*1200, // relative to C0
 	freq_range_cents: 3*1200, // 3 octaves
 	block_size: 1024,
@@ -98,7 +98,6 @@ function Render() {
 	ctx.beginPath();
 	ctx.lineWidth = '2';
 
-	var db_range = Math.max(1, controller.db_max - controller.db_min);
 	var freq_step = Math.pow(freq_cent, 10);
 	for (var freq = freq_min, i = 0; freq < Math.min(freq_max, freq_nyquist); freq *= freq_step, ++i) {
 		var bin = Math.floor(freq / freq_res)
@@ -108,7 +107,7 @@ function Render() {
 		x = (i * 10 / controller.freq_range_cents) * (canvas.width - 2 * text_width) + text_width;
 		db = 20 * Math.log(fftMagSq / controller.ref_level) / log10;
 		if (db < controller.db_min) db = controller.db_min;
-		y = (1 - (db - controller.db_min) / db_range) * (canvas.height - 2 * text_height);
+		y = (1 - (db - controller.db_min) / controller.db_range) * (canvas.height - 2 * text_height);
 
 		if (freq == freq_min) {
 			ctx.moveTo(x, y);
@@ -163,9 +162,9 @@ function StartProcessing(stream)
 	message.innerHTML = '';
 
 	var gui = new dat.GUI();
-	gui.add(controller, 'db_min', -100, 30);
-	gui.add(controller, 'db_max', -100, 30);
 	gui.add(controller, 'ref_level', {'1e-0': 1e-0, '1e-1': 1e-1, '1e-2': 1e-2, '1e-3': 1e-3, '1e-4': 1e-4, '1e-5': 1e-5, '1e-6': 1e-6, '1e-7': 1e-7, '1e-8': 1e-8});
+	gui.add(controller, 'db_min', -100, 30);
+	gui.add(controller, 'db_range', 1, 100);
 	gui.add(controller, 'freq_min_cents', 0, 10000).step(1);
 	gui.add(controller, 'freq_range_cents', 0, 10000).step(1);
 	gui.add(controller, 'block_size', [128, 256, 512, 1024, 2048, 4096]).onChange(function(value) {
