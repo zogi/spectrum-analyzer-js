@@ -9,21 +9,23 @@ var audio_context = null;
 var processor = null
 var source = null;
 
-var block_size = 512;
-var num_blocks = 32;
-var sample_buffer = new Float32CyclicBuffer(block_size, num_blocks);
+var gui = null;
 
-var fft_size = num_blocks * block_size;
-var fft = new FFTAlgorithm(fft_size);
+var controller = {
+	ref_level: 1e-4,
+	db_min: -70,
+	db_max: 0,
+	freq_min_cents: 4*1200, // relative to C0
+	freq_range_cents: 3*1200, // 3 octaves
+	block_size: 1024,
+	blocks_per_fft: 8,
+};
+
+var sample_buffer = null;
+var fft = null;
 
 var log2 = Math.log(2);
 var log10 = Math.log(10);
-
-var min_freq = 261.63; // C4
-var max_freq = 2093.0; // C7
-var dB_cutoff = -60;
-
-// compatibility
 
 navigator.getUserMedia = navigator.getUserMedia ||
 	navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
@@ -35,9 +37,14 @@ window.requestAnimationFrame = window.requestAnimationFrame ||
 
 var AudioContext = AudioContext || webkitAudioContext || mozAudioContext;
 
-// rendering
+function NumSubStr(num) {
+	var res = '';
+	for(; num > 0; num = Math.floor(num / 10)) {
+		res = String.fromCharCode(8320 + (num % 10)) + res;
+	}
+	return res;
+}
 
-var first = true;
 
 function Render() {
 	window.requestAnimationFrame(Render);
@@ -54,6 +61,8 @@ function Render() {
 	}
 
 	// apply window
+
+	var fft_size = controller.block_size * controller.blocks_per_fft;
 	for (var i = 0; i < num_samples; ++i) {
 		x = 2 * Math.PI * i / (fft_size - 1);
 		// Hamming window
@@ -70,38 +79,38 @@ function Render() {
 
 	fft.Forward(samples);
 
+	// render STFT curve
+
 	var freq_res = audio_context.sampleRate / num_samples;
+	var freq_nyquist = audio_context.sampleRate / 2;
+
+	var c0_freq = 16.35;
+	var c0_cents = 1200 * Math.log(c0_freq) / log2;
 	var freq_cent = Math.pow(2, 1/1200);
-	var freq_mul_cents = 10;
-	var freq_mul = Math.pow(freq_cent, freq_mul_cents);
-	var freq_min_cents = 1200 * Math.log(min_freq) / log2;
-	var freq_max_cents = 1200 * Math.log(max_freq) / log2;
-	var freq_range_cents = freq_max_cents - freq_min_cents;
+	var freq_min = c0_freq * Math.pow(freq_cent, controller.freq_min_cents);
+	var freq_max = c0_freq * Math.pow(freq_cent, controller.freq_min_cents + controller.freq_range_cents);
 
 	var text_width = 30;
 	var text_height = 15;
 
-	// render STFT curve
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-	if (first) {
-		ctx.clearRect(0, 0, canvas.width, canvas.height);
-	} else {
-		ctx.clearRect(text_width - 2, text_height - 2, canvas.width - 2 * text_width + 4, canvas.height - 2 * text_height + 4);
-	}
 	ctx.beginPath();
 	ctx.lineWidth = '2';
 
-	for (var freq = min_freq, i = 0; freq <= max_freq; freq *= freq_mul, ++i) {
+	var db_range = Math.max(1, controller.db_max - controller.db_min);
+	var freq_step = Math.pow(freq_cent, 10);
+	for (var freq = freq_min, i = 0; freq < Math.min(freq_max, freq_nyquist); freq *= freq_step, ++i) {
 		var bin = Math.floor(freq / freq_res)
 		re = samples[bin << 1];
 		im = samples[bin << 1 | 1];
 		fftMagSq = Math.pow(re / num_samples, 2) + Math.pow(im / num_samples, 2);
-		x = (i * freq_mul_cents / freq_range_cents) * (canvas.width - 2 * text_width) + text_width;
-		dB = 20 * Math.log(fftMagSq / 1e-5) / log10;
-		if (dB < dB_cutoff) dB = dB_cutoff;
-		y = ((dB / dB_cutoff - 1) * 0.4 + 1) * (canvas.height - text_height * 1.5);
+		x = (i * 10 / controller.freq_range_cents) * (canvas.width - 2 * text_width) + text_width;
+		db = 20 * Math.log(fftMagSq / controller.ref_level) / log10;
+		if (db < controller.db_min) db = controller.db_min;
+		y = (1 - (db - controller.db_min) / db_range) * (canvas.height - 2 * text_height);
 
-		if (freq == min_freq) {
+		if (freq == freq_min) {
 			ctx.moveTo(x, y);
 		} else {
 			ctx.lineTo(x, y);
@@ -110,40 +119,64 @@ function Render() {
 
 	ctx.stroke();
 
-	if (first) {
-		// render text
-		var c0_cents = 1200 * Math.log(16.35) / log2;
-		ctx.font = text_height.toString() + "px Arial";
-		ctx.textBaseline = 'top';
-		ctx.textAlign = 'center'
-		var i = 1;
-		for (var cents = freq_min_cents; cents < freq_max_cents + 10; cents += 100) {
-			var octave = Math.round((cents - c0_cents) / 1200);
-			var note = Math.round((cents - c0_cents) % 1200 / 100) % 12;
-			var note_names = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'H'];
-			var x = (cents - freq_min_cents) / freq_range_cents * (canvas.width - 2 * text_width) + text_width;
-			var y = canvas.height - text_height;
-			var label = note_names[note] + String.fromCharCode(8320 + octave);
-			ctx.fillText(label, x, y);
-		}
-	}
+	// render text
 
-	first = false;
+	ctx.font = text_height.toString() + "px Arial";
+	ctx.textBaseline = 'top';
+	ctx.textAlign = 'center'
+	var i = 1;
+	for (var cents_rel = 0; cents_rel < controller.freq_range_cents + 10; cents_rel += 100) {
+		var cents = controller.freq_min_cents + cents_rel;
+		var octave = Math.round(cents / 1200);
+		var note = Math.round(cents % 1200 / 100) % 12;
+		var note_names = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'H'];
+		var x = cents_rel / controller.freq_range_cents * (canvas.width - 2 * text_width) + text_width;
+		var y = canvas.height - text_height;
+		var label = note_names[note] + NumSubStr(octave);
+		ctx.fillText(label, x, y);
+	}
 }
 
-// initialization
+function UpdateController() {
+	if (processor) {
+		source.disconnect();
+		processor.disconnect();
+	}
 
-function StartProcessing(stream)
-{
-	message.innerHTML = '';
-	source = audio_context.createMediaStreamSource(stream);
-	processor = audio_context.createScriptProcessor(block_size, 1, 1);
+	controller.block_size = parseInt(controller.block_size);
+	controller.blocks_per_fft = parseInt(controller.blocks_per_fft);
+
+	sample_buffer = new Float32CyclicBuffer(controller.block_size, controller.blocks_per_fft);
+	fft = new FFTAlgorithm(controller.block_size * controller.blocks_per_fft);
+
+	processor = audio_context.createScriptProcessor(controller.block_size, 1, 1);
 	processor.onaudioprocess = function(evt) {
 		sample_buffer.Push(evt.inputBuffer.getChannelData(0));
 	};
 	source.connect(processor);
 	// ScriptProcessorNode needs a connected output to work
 	processor.connect(audio_context.destination);
+}
+
+function StartProcessing(stream)
+{
+	message.innerHTML = '';
+
+	var gui = new dat.GUI();
+	gui.add(controller, 'db_min', -100, 30);
+	gui.add(controller, 'db_max', -100, 30);
+	gui.add(controller, 'ref_level', {'1e-0': 1e-0, '1e-1': 1e-1, '1e-2': 1e-2, '1e-3': 1e-3, '1e-4': 1e-4, '1e-5': 1e-5, '1e-6': 1e-6, '1e-7': 1e-7, '1e-8': 1e-8});
+	gui.add(controller, 'freq_min_cents', 0, 10000).step(1);
+	gui.add(controller, 'freq_range_cents', 0, 10000).step(1);
+	gui.add(controller, 'block_size', [128, 256, 512, 1024, 2048, 4096]).onChange(function(value) {
+		UpdateController();
+	});
+	gui.add(controller, 'blocks_per_fft', [1, 2, 4, 8, 16, 32, 64]).onChange(function(value) {
+		UpdateController();
+	});
+
+	source = audio_context.createMediaStreamSource(stream);
+	UpdateController();
 	Render();
 }
 
