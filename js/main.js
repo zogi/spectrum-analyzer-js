@@ -143,8 +143,9 @@ function Render() {
 	var db_max = controller.db_min + controller.db_range;
 	var x = text_width - 15;
 	for (var db=controller.db_min; db <= db_max; db += db_step) {
-		var y = base_y * (1 - (db-controller.db_min)/controller.db_range);
-		ctx.fillText(db.toString() + ' dB', x, y);
+		db_int = Math.round(db);
+		var y = base_y * (1 - (db_int-controller.db_min)/controller.db_range);
+		ctx.fillText(db_int.toString() + ' dB', x, y);
 	}
 }
 
