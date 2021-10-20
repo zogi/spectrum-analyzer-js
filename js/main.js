@@ -213,5 +213,3 @@ function Init() {
 		message.innerHTML = 'navigator.getUserMedia error: ' + e.name;
 	});
 }
-
-window.onload = Init;
